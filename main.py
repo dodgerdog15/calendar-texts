@@ -3,6 +3,7 @@ from pyicloud import PyiCloudService
 import os
 from dotenv import load_dotenv
 import sys
+from datetime import datetime, timedelta
 
 # get .env file values
 load_dotenv()
@@ -53,4 +54,9 @@ elif api.requires_2sa:
         sys.exit(1)
 
 # get the calendar events
-print(api.calendar.events)
+calendar = api.calendar
+events = calendar.events()
+for event in events:
+    print(event.keys())
+    #print(event['startDate'])
+    #print(f"Event: {event['title']}")
