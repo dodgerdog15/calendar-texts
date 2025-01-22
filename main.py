@@ -58,5 +58,3 @@ calendar = api.calendar
 events = calendar.events()
 for event in events:
     print(event.keys())
-    #print(event['startDate'])
-    #print(f"Event: {event['title']}")
