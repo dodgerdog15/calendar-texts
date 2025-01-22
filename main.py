@@ -53,4 +53,4 @@ elif api.requires_2sa:
         sys.exit(1)
 
 # get the calendar events
-#print(api.calendar.events())
+print(api.calendar.events)
