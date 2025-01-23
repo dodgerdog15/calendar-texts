@@ -4,12 +4,18 @@ import os
 from dotenv import load_dotenv
 import sys
 from datetime import datetime, timedelta
+import smtplib
 
 # get .env file values
 load_dotenv()
 appleID = os.getenv("APPLE_ID")
 password = os.getenv("PASSWORD")
 name = os.getenv("NAME")
+carrier = os.getenv("CARRIER")
+number = os.getenv("NUMBER")
+fake_email = os.getenv("FAKE_EMAIL")
+fake_pw = os.getenv("FAKE_PW")
+app_password = os.getenv("APP_PW")
 
 # save credentials for icloud
 api = PyiCloudService(appleID, password)
@@ -63,14 +69,26 @@ api.calendar.refresh_client()
 events = api.calendar.events(start_of_day, end_of_day)
 print(start_of_day)
 print(end_of_day)
+message = ""
 if not events:
+    message = "No events found for today"
     print("No events found for today")
 else:
     # how I actually want it formatted
+    message = f"Hi {name}! Here are your events for today:"
     print(f"Hi {name}! Here are your events for today:")
     for event in events:
         # convert time to readable format
         
         event_datettime = datetime(event['startDate'][1], event['startDate'][2], event['startDate'][3], event['startDate'][4], event['startDate'][5])
         readable_time = event_datettime.strftime("%I:%M %p")
+        message += f"You have {event['title']} at {readable_time}"
         print(f"You have {event['title']} at {readable_time}")
+
+# send the text message
+receiver = number + carrier
+auth = (fake_email, app_password)
+server = smtplib.SMTP("smtp.gmail.com", 587)
+server.starttls()
+server.login(auth[0], auth[1])
+server.sendmail(auth[0], receiver, message)
