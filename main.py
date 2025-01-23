@@ -5,11 +5,16 @@ from dotenv import load_dotenv
 import sys
 from datetime import datetime, timedelta
 import smtplib
+from caldav import DAVClient
+from icalendar import Calendar
 
+
+def convertTime(time):
+    return time.strftime("%I:%M %p").lstrip("0")
 # get .env file values
 load_dotenv()
 appleID = os.getenv("APPLE_ID")
-password = os.getenv("PASSWORD")
+apple_specific_password = os.getenv("APPLE_APP_PW")
 name = os.getenv("NAME")
 carrier = os.getenv("CARRIER")
 number = os.getenv("NUMBER")
@@ -17,73 +22,44 @@ fake_email = os.getenv("FAKE_EMAIL")
 fake_pw = os.getenv("FAKE_PW")
 app_password = os.getenv("APP_PW")
 
-# save credentials for icloud
-api = PyiCloudService(appleID, password)
+# trying caldav way
+client = DAVClient("https://caldav.icloud.com/", username=appleID, password=apple_specific_password)
+principal = client.principal()
+calendars = principal.calendars()
+for calendar in calendars:
+    print(calendar.name)
 
-# uses 2 factor authentication
-if api.requires_2fa:
-    print("Two-factor authentication required.")
-    code = input("Enter the code you received of one of your approved devices: ")
-    result = api.validate_2fa_code(code)
-    print("Code validation result: %s" % result)
+# Define start and end of today
+today_start = datetime.combine(datetime.today(), datetime.min.time())  # Midnight
+today_end = today_start + timedelta(days=1) - timedelta(seconds=1)    # 11:59 PM
 
-    if not result:
-        print("Failed to verify security code")
-        sys.exit(1)
-
-    if not api.is_trusted_session:
-        print("Session is not trusted. Requesting trust...")
-        result = api.trust_session()
-        print("Session trust result %s" % result)
-
-        if not result:
-            print("Failed to request trust. You will likely be prompted for the code again in the coming weeks")
-elif api.requires_2sa:
-    import click
-    print("Two-step authentication required. Your trusted devices are:")
-
-    devices = api.trusted_devices
-    for i, device in enumerate(devices):
-        print(
-            "  %s: %s" % (i, device.get('deviceName',
-            "SMS to %s" % device.get('phoneNumber')))
-        )
-
-    device = click.prompt('Which device would you like to use?', default=0)
-    device = devices[device]
-    if not api.send_verification_code(device):
-        print("Failed to send verification code")
-        sys.exit(1)
-
-    code = click.prompt('Please enter validation code')
-    if not api.validate_verification_code(device, code):
-        print("Failed to verify verification code")
-        sys.exit(1)
-
-# get the calendar events
-now = datetime.now()
-start_of_day = datetime(now.year, now.month, now.day, 0, 0, 0)  # Today at 12:00 AM
-end_of_day = start_of_day + timedelta(days=1)  # Tomorrow at 12:00 AM
-
-api.calendar.refresh_client()
-events = api.calendar.events(start_of_day, end_of_day)
-print(start_of_day)
-print(end_of_day)
-message = ""
-if not events:
-    message = "No events found for today"
-    print("No events found for today")
-else:
-    # how I actually want it formatted
-    message = f"Hi {name}! Here are your events for today:"
-    print(f"Hi {name}! Here are your events for today:")
+ # Collect events for the day
+daily_events = []
+for calendar in calendars:
+    events = calendar.date_search(today_start, today_end)
     for event in events:
-        # convert time to readable format
-        
-        event_datettime = datetime(event['startDate'][1], event['startDate'][2], event['startDate'][3], event['startDate'][4], event['startDate'][5])
-        readable_time = event_datettime.strftime("%I:%M %p")
-        message += f"You have {event['title']} at {readable_time}"
-        print(f"You have {event['title']} at {readable_time}")
+        cal = Calendar.from_ical(event.data)
+        for component in cal.walk('vevent'):
+            daily_events.append({
+                'summary': component.get('summary'),
+                'start_time': component.get('dtstart').dt,
+                'end_time': component.get('dtend').dt,
+                'location': component.get('location', 'No location')
+            })
+
+# Print events
+message = ""
+if daily_events:
+    message = "Today's Events:"
+    print("Today's Events:")
+    for event in daily_events:
+        start = convertTime(event['start_time'])
+        end = convertTime(event['end_time'])
+        message += f"- {event['summary']} from {start} to {end} (Location: {event['location']})"
+        print(f"- {event['summary']} from {start} to {end} (Location: {event['location']})")
+else:
+    message = "No events today."
+    print("No events today.")
 
 # send the text message
 receiver = number + carrier
