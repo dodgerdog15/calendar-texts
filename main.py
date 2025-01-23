@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 load_dotenv()
 appleID = os.getenv("APPLE_ID")
 password = os.getenv("PASSWORD")
+name = os.getenv("NAME")
 
 # save credentials for icloud
 api = PyiCloudService(appleID, password)
@@ -54,7 +55,22 @@ elif api.requires_2sa:
         sys.exit(1)
 
 # get the calendar events
-calendar = api.calendar
-events = calendar.events()
-for event in events:
-    print(event.keys())
+now = datetime.now()
+start_of_day = datetime(now.year, now.month, now.day, 0, 0, 0)  # Today at 12:00 AM
+end_of_day = start_of_day + timedelta(days=1)  # Tomorrow at 12:00 AM
+
+api.calendar.refresh_client()
+events = api.calendar.events(start_of_day, end_of_day)
+print(start_of_day)
+print(end_of_day)
+if not events:
+    print("No events found for today")
+else:
+    # how I actually want it formatted
+    print(f"Hi {name}! Here are your events for today:")
+    for event in events:
+        # convert time to readable format
+        
+        event_datettime = datetime(event['startDate'][1], event['startDate'][2], event['startDate'][3], event['startDate'][4], event['startDate'][5])
+        readable_time = event_datettime.strftime("%I:%M %p")
+        print(f"You have {event['title']} at {readable_time}")
