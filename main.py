@@ -25,6 +25,7 @@ def convertTime(time):
 
 # get the daily events from the apple calendars
 def getDayEvents(calendars):
+    print(calendars)
     today_start = datetime.combine(datetime.today(), datetime.min.time())  # Midnight
     today_end = today_start + timedelta(days=1) - timedelta(seconds=1)    # 11:59 PM
     daily_events = []
@@ -45,7 +46,7 @@ def getDayEvents(calendars):
 def getMessage(daily_events):
     message = ""
     if daily_events:
-        message = "Today's Events:"
+        message = "Today's Events:\n"
         print("Today's Events:")
         for event in daily_events:
             start = convertTime(event['start_time'])
@@ -53,7 +54,7 @@ def getMessage(daily_events):
             message += f"- {event['summary']} from {start} to {end} (Location: {event['location']})"
             print(f"- {event['summary']} from {start} to {end} (Location: {event['location']})")
     else:
-        message = "No events today."
+        message = f"Hi {NAME}, it looks like you have no events today."
         print("No events today.")
     return message
 
@@ -77,7 +78,7 @@ def sendMessage(message):
     print(auth[0])
     print(receiver)
     try:
-        server.sendmail(auth[0], receiver, message)
+        server.sendmail(auth[0], receiver, message.encode('utf-8'))
     except Exception as e:
         print("Error sending message")
         print(e)
